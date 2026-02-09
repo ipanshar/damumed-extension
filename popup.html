@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DamuMed JVM Exporter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🏥 DamuMed JVM Exporter</h1>
+    
+    <div id="status" class="status"></div>
+    
+    <!-- Информация о пациенте -->
+    <fieldset class="patient-info">
+      <legend>👤 Информация о пациенте</legend>
+      
+      <div class="form-group">
+        <label for="iin">ИИН:</label>
+        <input type="text" id="iin" readonly>
+      </div>
+      
+      <div class="form-group">
+        <label for="fullName">ФИО:</label>
+        <input type="text" id="fullName" readonly>
+      </div>
+      
+      <div class="form-group">
+        <label for="birthDate">Дата рождения:</label>
+        <input type="text" id="birthDate" readonly>
+      </div>
+      
+      <div class="form-group">
+        <label for="bloodGroup">Группа крови:</label>
+        <input type="text" id="bloodGroup" readonly>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group half">
+          <label for="roomNumber">№ палаты:</label>
+          <input type="text" id="roomNumber" readonly>
+        </div>
+        <div class="form-group half">
+          <label for="department">Отделение:</label>
+          <input type="text" id="department" readonly>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group half">
+          <label for="admissionDate">Госпитализация:</label>
+          <input type="text" id="admissionDate" readonly>
+        </div>
+        <div class="form-group half">
+          <label for="dischargeDate">Выписка:</label>
+          <input type="text" id="dischargeDate" readonly>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="organization">Организация:</label>
+        <input type="text" id="organization" value="НИИ кардиологии" readonly>
+      </div>
+    </fieldset>
+    
+    <!-- Назначения -->
+    <fieldset class="assignments">
+      <legend>💊 Назначения (Лекарственные средства)</legend>
+      
+      <div class="assignments-header">
+        <span id="assignmentsCount">Загрузка...</span>
+        <div class="header-buttons">
+          <button id="selectAllBtn" class="btn-small" title="Выделить все">☑️ Все</button>
+          <button id="deselectAllBtn" class="btn-small" title="Отменить все">☐ Сброс</button>
+          <button id="refreshBtn" class="btn-small" title="Обновить данные">🔄</button>
+        </div>
+      </div>
+      
+      <div id="assignmentsList" class="assignments-list">
+        <div class="loading">Ожидание данных...</div>
+      </div>
+    </fieldset>
+    
+    <!-- Настройки экспорта -->
+    <fieldset class="export-settings">
+      <legend>⚙️ Настройки экспорта</legend>
+      
+      <div class="form-row">
+        <div class="form-group half">
+          <label for="dateFrom">Дата с:</label>
+          <input type="date" id="dateFrom">
+        </div>
+        <div class="form-group half">
+          <label for="dateTo">Дата по:</label>
+          <input type="date" id="dateTo">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="onlyPending" checked>
+          Только невыполненные назначения
+        </label>
+      </div>
+    </fieldset>
+    
+    <!-- Кнопки действий -->
+    <div class="actions">
+      <button id="loadDataBtn" class="btn btn-primary">📥 Загрузить данные</button>
+      <button id="exportOcsBtn" class="btn btn-success" disabled>📄 Экспорт в OCS</button>
+      <button id="copyBtn" class="btn btn-secondary" disabled>📋 Копировать</button>
+    </div>
+    
+    <!-- Превью OCS -->
+    <fieldset class="preview" id="previewSection" style="display: none;">
+      <legend>📄 Превью OCS файла</legend>
+      <textarea id="ocsPreview" readonly></textarea>
+    </fieldset>
+    
+    <div class="footer">
+      <small>Версия 1.0.0 | DamuMed → JVM</small>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

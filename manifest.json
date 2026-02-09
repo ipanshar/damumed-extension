@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "DamuMed JVM Exporter",
+  "version": "1.0.0",
+  "description": "Расширение для получения назначений врача из DamuMed для передачи в оборудование JVM",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://hospital-alm.dmed.kz/*",
+    "https://*.dmed.kz/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["https://*.dmed.kz/*"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "DamuMed JVM Exporter"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://hospital-alm.dmed.kz/*",
+        "https://*.dmed.kz/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
