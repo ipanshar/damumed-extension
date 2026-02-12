@@ -12,7 +12,8 @@
   var originalXHRSend = XMLHttpRequest.prototype.send;
   
   XMLHttpRequest.prototype.open = function(method, url) {
-    this._url = url;
+    // Преобразуем URL в строку (может быть объектом URL)
+    this._url = url ? url.toString() : '';
     this._method = method;
     return originalXHROpen.apply(this, arguments);
   };
@@ -20,10 +21,20 @@
   XMLHttpRequest.prototype.send = function(body) {
     var xhr = this;
     
-    if (xhr._url && xhr._url.indexOf('getMedicalAssignments') !== -1) {
+    // Безопасное получение URL как строки
+    var urlStr = '';
+    try {
+      if (xhr._url) {
+        urlStr = typeof xhr._url === 'string' ? xhr._url : String(xhr._url);
+      }
+    } catch (e) {
+      urlStr = '';
+    }
+    
+    if (urlStr.indexOf('getMedicalAssignments') !== -1) {
       window.__damumedRequestCount++;
       console.log('[DamuMed JVM] ====== XHR запрос #' + window.__damumedRequestCount + ' ======');
-      console.log('[DamuMed JVM] URL:', xhr._url);
+      console.log('[DamuMed JVM] URL:', urlStr);
       
       xhr.addEventListener('load', function() {
         console.log('[DamuMed JVM] XHR ответ, статус:', xhr.status);

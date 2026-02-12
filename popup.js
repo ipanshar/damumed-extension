@@ -27,7 +27,10 @@ const elements = {
   selectAllBtn: document.getElementById('selectAllBtn'),
   deselectAllBtn: document.getElementById('deselectAllBtn'),
   previewSection: document.getElementById('previewSection'),
-  ocsPreview: document.getElementById('ocsPreview')
+  ocsPreview: document.getElementById('ocsPreview'),
+  fetchApiBtn: document.getElementById('fetchApiBtn'),
+  patientRegId: document.getElementById('patientRegId'),
+  apiStatus: document.getElementById('apiStatus')
 };
 
 // Инициализация
@@ -45,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.dateTo.addEventListener('change', renderAssignments);
   elements.selectAllBtn.addEventListener('click', selectAll);
   elements.deselectAllBtn.addEventListener('click', deselectAll);
+  elements.fetchApiBtn.addEventListener('click', fetchFromApi);
 });
 
 // Показать статус
@@ -93,6 +97,7 @@ async function loadStoredData() {
     if (data[storageKey] && data[storageKey].assignmentsData && data[storageKey].assignmentsData.length > 0) {
       assignmentsData = data[storageKey].assignmentsData;
       autoDetectDateRange();
+      autoFillPatientRegId(); // Автозаполнение ID госпитализации
       renderAssignments();
       enableExportButtons();
       showStatus(`Данные загружены для пациента (ID: ${recordID})`, 'info');
@@ -101,6 +106,18 @@ async function loadStoredData() {
     }
   } catch (error) {
     console.error('Ошибка загрузки данных:', error);
+  }
+}
+
+// Автозаполнение PatientAdmissionRegisterID из перехваченных данных
+function autoFillPatientRegId() {
+  if (!assignmentsData || assignmentsData.length === 0) return;
+  
+  // Берём ID из первого назначения
+  const firstAssignment = assignmentsData[0];
+  if (firstAssignment && firstAssignment.PatientAdmissionRegisterID) {
+    elements.patientRegId.value = firstAssignment.PatientAdmissionRegisterID;
+    console.log('[DamuMed JVM] Автозаполнен PatientAdmissionRegisterID:', firstAssignment.PatientAdmissionRegisterID);
   }
 }
 
@@ -330,10 +347,30 @@ function renderAssignments() {
       const isCompleted = rec.MedAssignmentStatusID === 3;
       if (onlyPending && isCompleted) return;
       
+      // Извлекаем DrugID из MedAssignmentExecutionDrugs
+      let drugId = '';
+      let drugFullName = drugName;
+      let dosage = '';
+      let manufacturer = '';
+      
+      if (rec.MedAssignmentExecutionDrugs && rec.MedAssignmentExecutionDrugs.length > 0) {
+        const execDrug = rec.MedAssignmentExecutionDrugs[0];
+        drugId = execDrug.DrugID || '';
+        if (execDrug.Drug) {
+          drugFullName = execDrug.Drug.FullNameRU || execDrug.Drug.FullName || execDrug.Drug.NameRU || drugName;
+          dosage = execDrug.Drug.Dosage || '';
+          manufacturer = execDrug.Drug.Manufacturer || '';
+        }
+      }
+      
       allRecs.push({
         assignmentId: assignment.Guid || assignment.ID,
         recId: rec.ID,
+        drugId: drugId,
         drugName: drugName,
+        drugFullName: drugFullName,
+        dosage: dosage,
+        manufacturer: manufacturer,
         appointDateTime: rec.AppointDateTime,
         appointDateStr: rec.AppointDateTimeStr,
         status: rec.MedAssignmentStatusID,
@@ -493,27 +530,24 @@ function generateOcsContent() {
       new Date(rec.appointDateTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : 
       '';
     
-    const beginDate = rec.beginDate ? 
-      rec.beginDate.split('.').reverse().join('').replace(/\./g, '') : 
-      formatDateForOcs(rec.appointDateTime);
+    // Используем дату конкретного приёма (AppointDateTime), а не даты назначения
+    const appointDate = formatDateForOcs(rec.appointDateTime);
     
-    const endDate = rec.endDate ? 
-      rec.endDate.split('.').reverse().join('').replace(/\./g, '') : 
-      beginDate;
-    
-    // Формат: ФИО||Палата||Отделение||Организация||Тип||Рег.номер||Препарат||Время||ДатаНачала||ДатаКонца||...
+    // Формат: ФИО||Палата||Отделение||Организация||Тип||DrugID||Препарат||Время||ДатаПриёма||ДатаПриёма||Дозировка||Производитель||...
     return [
       patientData.fullName || '',
       patientData.roomNumber || '',
       rec.department || patientData.department || '',
       patientData.organization || 'НИИ кардиологии',
       '1', // MedAssignmentTypeID
-      rec.regNumber || '',
+      rec.drugId || '', // DrugID из DamuMed
       rec.drugName || '',
       time,
-      beginDate,
-      endDate,
-      '', '', '', '', '', '', '', '', '', '', '', '', '' // Пустые поля для совместимости
+      appointDate, // Дата конкретного приёма
+      appointDate, // Та же дата (для одного приёма начало = конец)
+      rec.dosage || '',
+      rec.manufacturer || '',
+      '', '', '', '', '', '', '', '', '', '', '' // Пустые поля для совместимости
     ].join('||');
   });
   
@@ -611,4 +645,162 @@ async function copyToClipboard() {
   } catch (error) {
     showStatus('Ошибка копирования', 'error');
   }
+}
+
+// ==================== ПРЯМОЙ ВЫЗОВ API ====================
+// Загрузка назначений напрямую из API DamuMed с выбранными датами
+async function fetchFromApi() {
+  const patientRegId = elements.patientRegId.value.trim();
+  const dateFrom = elements.dateFrom.value;
+  const dateTo = elements.dateTo.value;
+  
+  if (!patientRegId) {
+    showStatus('Введите ID госпитализации (PatientAdmissionRegisterID)', 'error');
+    elements.patientRegId.focus();
+    return;
+  }
+  
+  if (!dateFrom || !dateTo) {
+    showStatus('Выберите диапазон дат', 'error');
+    return;
+  }
+  
+  // Форматируем даты для API
+  const beginDate = `${dateFrom}T00:00:00`;
+  const endDate = `${dateTo}T23:59:59`;
+  
+  // Показываем статус
+  showApiStatus('Загрузка назначений из API...', 'loading');
+  elements.fetchApiBtn.disabled = true;
+  
+  try {
+    // Получаем текущую вкладку
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab.url.includes('dmed.kz')) {
+      showStatus('Откройте страницу DamuMed для использования API', 'error');
+      showApiStatus('', 'hide');
+      elements.fetchApiBtn.disabled = false;
+      return;
+    }
+    
+    // Выполняем запрос через content script (чтобы использовать куки сессии)
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: callMedAssignmentsApi,
+      args: [patientRegId, beginDate, endDate]
+    });
+    
+    if (results && results[0] && results[0].result) {
+      const response = results[0].result;
+      
+      if (response.error) {
+        showStatus(`Ошибка API: ${response.error}`, 'error');
+        showApiStatus(`Ошибка: ${response.error}`, 'error');
+      } else if (response.Data && response.Data.length > 0) {
+        // Фильтруем только лекарственные средства
+        const drugAssignments = response.Data.filter(a => a.MedAssignmentTypeID === 1);
+        
+        // Обновляем данные
+        assignmentsData = drugAssignments;
+        
+        // Извлекаем PatientAdmissionRegisterID для будущих запросов
+        if (drugAssignments.length > 0 && drugAssignments[0].PatientAdmissionRegisterID) {
+          elements.patientRegId.value = drugAssignments[0].PatientAdmissionRegisterID;
+        }
+        
+        // Сохраняем в storage
+        const recordID = await getCurrentRecordID();
+        const storageKey = `patient_${recordID}`;
+        const dataToSave = {};
+        dataToSave[storageKey] = {
+          assignmentsData: assignmentsData,
+          lastUpdate: new Date().toISOString()
+        };
+        await chrome.storage.local.set(dataToSave);
+        
+        renderAssignments();
+        enableExportButtons();
+        
+        const totalRecs = drugAssignments.reduce((sum, a) => sum + (a.MedAssignmentRecs?.length || 0), 0);
+        showStatus(`Загружено ${drugAssignments.length} препаратов, ${totalRecs} приёмов`, 'success');
+        showApiStatus(`✅ Загружено: ${drugAssignments.length} препаратов`, 'success');
+      } else {
+        showStatus('Назначения не найдены за выбранный период', 'info');
+        showApiStatus('Назначения не найдены', 'info');
+      }
+    } else {
+      showStatus('Нет ответа от API', 'error');
+      showApiStatus('Нет ответа', 'error');
+    }
+  } catch (error) {
+    console.error('Ошибка вызова API:', error);
+    showStatus(`Ошибка: ${error.message}`, 'error');
+    showApiStatus(`Ошибка: ${error.message}`, 'error');
+  } finally {
+    elements.fetchApiBtn.disabled = false;
+  }
+}
+
+// Показать статус API запроса
+function showApiStatus(message, type) {
+  if (!elements.apiStatus) return;
+  
+  if (type === 'hide' || !message) {
+    elements.apiStatus.style.display = 'none';
+    return;
+  }
+  
+  elements.apiStatus.textContent = message;
+  elements.apiStatus.className = `api-status ${type}`;
+  elements.apiStatus.style.display = 'block';
+  
+  if (type === 'success') {
+    setTimeout(() => {
+      elements.apiStatus.style.display = 'none';
+    }, 5000);
+  }
+}
+
+// Функция для выполнения в контексте страницы (через executeScript)
+function callMedAssignmentsApi(patientRegId, beginDate, endDate) {
+  return new Promise((resolve) => {
+    const requestBody = {
+      listQueryModel: {
+        PatientAdmissionRegisterID: patientRegId,
+        IncludeMedAssignmentRec: true,
+        MedAssignmentTypes: ["1"],
+        SourceTypes: ["1", "2"],
+        MedAssignmentStatuses: null,
+        BeginAppointDate: null,
+        EndAppointDate: null,
+        BeginAppointRecDate: beginDate,
+        EndAppointRecDate: endDate,
+        MedAssignmentName: ""
+      }
+    };
+    
+    fetch('/medicalAssignment/getMedicalAssignments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: 'include', // Важно для отправки куки сессии
+      body: JSON.stringify(requestBody)
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      resolve(data);
+    })
+    .catch(error => {
+      resolve({ error: error.message });
+    });
+  });
 }

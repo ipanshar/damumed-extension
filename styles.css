@@ -328,3 +328,55 @@ legend {
   font-size: 32px;
   margin-bottom: 10px;
 }
+
+/* API Status */
+.api-status {
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.api-status.loading {
+  background: #e8f4fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+}
+
+.api-status.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.api-status.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.api-status.info {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
+/* Button Info style */
+.btn-info {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+}
+
+.btn-info:hover:not(:disabled) {
+  background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+  transform: translateY(-1px);
+}
+
+/* Hint text */
+.hint {
+  display: block;
+  font-size: 10px;
+  color: #a0aec0;
+  margin-top: 2px;
+}

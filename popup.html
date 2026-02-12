@@ -103,6 +103,14 @@
           Только невыполненные назначения
         </label>
       </div>
+      
+      <div class="form-group">
+        <label for="patientRegId">ID госпитализации:</label>
+        <input type="text" id="patientRegId" placeholder="Авто из перехвата">
+        <small class="hint">PatientAdmissionRegisterID</small>
+      </div>
+      
+      <button id="fetchApiBtn" class="btn btn-info" style="width: 100%; margin-top: 10px;">🔄 Загрузить из API (по датам)</button>
     </fieldset>
     
     <!-- Кнопки действий -->
@@ -111,6 +119,9 @@
       <button id="exportOcsBtn" class="btn btn-success" disabled>📄 Экспорт в OCS</button>
       <button id="copyBtn" class="btn btn-secondary" disabled>📋 Копировать</button>
     </div>
+    
+    <!-- Статус API запроса -->
+    <div id="apiStatus" class="api-status" style="display: none;"></div>
     
     <!-- Превью OCS -->
     <fieldset class="preview" id="previewSection" style="display: none;">
